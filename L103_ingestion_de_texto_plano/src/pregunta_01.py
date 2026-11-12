@@ -1,29 +1,55 @@
+
+import pandas as pd
+import re
+
+
 def pregunta_01():
-    """
-    El archivo `data/clusters_report.txt` es un reporte de clústeres de
-    palabras clave pensado para ser leído por una persona, no por un programa:
-    los encabezados ocupan varias líneas, las columnas están alineadas con
-    espacios y la lista de palabras clave de un clúster continúa en las líneas
-    siguientes.
+    with open("data/clusters_report.txt", "r", encoding="utf-8") as archivo:
+        lineas = archivo.readlines()
 
-    Su tarea es convertir ese reporte en un DataFrame de Pandas con una fila
-    por clúster y las columnas:
+    registros = []
+    cluster_actual = None
 
-    - `cluster`: número del clúster, como entero.
-    - `cantidad_de_palabras_clave`: como entero.
-    - `porcentaje_de_palabras_clave`: como número decimal; por ejemplo, el
-      texto `15,9 %` debe quedar como `15.9`.
-    - `principales_palabras_clave`: todas las palabras clave del clúster en un
-      solo texto, separadas por una coma y un único espacio.
+    patron = r"^\s*(\d+)\s+(\d+)\s+(\d+,\d+)\s*%\s*(.*)$"
 
-    Retorne el DataFrame.
+    for linea in lineas:
+        coincidencia = re.match(patron, linea)
 
-    Ejemplo del formato de la respuesta (se omite la última columna):
+        if coincidencia:
+            if cluster_actual is not None:
+                registros.append(cluster_actual)
 
-           cluster  cantidad_de_palabras_clave  porcentaje_de_palabras_clave
-        0        1                         105                          15.9
-        1        2                         102                          15.4
-        ...
-    """
+            cluster_actual = {
+                "cluster": int(coincidencia.group(1)),
+                "cantidad_de_palabras_clave": int(coincidencia.group(2)),
+                "porcentaje_de_palabras_clave": float(
+                    coincidencia.group(3).replace(",", ".")
+                ),
+                "principales_palabras_clave": coincidencia.group(4).strip()
+            }
 
-    raise NotImplementedError
+        elif cluster_actual is not None and linea.strip():
+            cluster_actual["principales_palabras_clave"] += " " + linea.strip()
+
+    if cluster_actual is not None:
+        registros.append(cluster_actual)
+
+    df = pd.DataFrame(registros)
+
+    df["principales_palabras_clave"] = df[
+        "principales_palabras_clave"
+    ].apply(
+        lambda texto: ", ".join(
+            palabra.strip()
+            for palabra in texto.split(",")
+            if palabra.strip()
+        )
+    )
+
+    df["principales_palabras_clave"] = (
+        df["principales_palabras_clave"]
+        .str.replace(r"\s+", " ", regex=True)
+        .str.rstrip(". ")
+    )
+
+    return df
