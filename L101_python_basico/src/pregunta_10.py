@@ -1,14 +1,40 @@
+import csv
+import gzip
+from pathlib import Path
+
+
+def leer_datos():
+    """Lee data/data.csv.gz, con o sin encabezados."""
+    ruta = Path(__file__).resolve().parent.parent / "data" / "data.csv.gz"
+    if not ruta.exists():
+        ruta = Path("data/data.csv.gz")
+
+    with gzip.open(ruta, "rt", encoding="utf-8-sig", newline="") as archivo:
+        primera = archivo.readline()
+        archivo.seek(0)
+        # El formato habitual es TSV, pues codes y metrics contienen comas.
+        if "\t" in primera:
+            delimitador = "\t"
+        elif ";" in primera:
+            delimitador = ";"
+        else:
+            delimitador = ","
+        lector = csv.reader(archivo, delimiter=delimitador)
+        for fila in lector:
+            if not fila or all(not campo.strip() for campo in fila):
+                continue
+            if len(fila) < 5:
+                raise ValueError("Se esperaban cinco columnas en data/data.csv.gz")
+            if fila[0].strip().lower() == "letter" and fila[1].strip().lower() == "value":
+                continue
+            yield tuple(campo.strip() for campo in fila[:5])
+
+
 def pregunta_10():
-    """
-    Para cada registro del archivo, en el mismo orden en que aparecen,
-    retorne una tupla con la letra de la primera columna (`letter`), la
-    cantidad de elementos de la cuarta columna (`codes`) y la cantidad de
-    pares de la quinta columna (`metrics`). El resultado es una lista con una
-    tupla por registro.
-
-    Ejemplo del formato de la respuesta:
-
-        [("E", 3, 5), ("A", 3, 4), ("B", 4, 4), ...]
-    """
-
-    raise NotImplementedError
+    """Tuplas (letter, número de codes, número de metrics) por fila."""
+    resultado = []
+    for letra, _, _, codigos, metricas in leer_datos():
+        n_codigos = len([x for x in codigos.split(",") if x.strip()])
+        n_metricas = len([x for x in metricas.split(",") if x.strip()])
+        resultado.append((letra, n_codigos, n_metricas))
+    return resultado
